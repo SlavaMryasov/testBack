@@ -1,55 +1,67 @@
 import cors from "cors";
 import crypto from "crypto";
 import express from "express";
-import { data } from "./data/data.js";
+import { pool } from "./db.js";
 
 const app = express();
 app.use(cors());
 app.use(express.json());
 
 app.get("/", (req, res) => {
-    res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
-    res.end("Server was start");
-  });
-
-app.get("/api/news", (req, res) => {
-  res.status(200).json({
-    message: "Список новостей успешно получен",
-    data,
-  });
+  res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
+  res.end("Server was start");
 });
 
-app.post("/api/news", (req, res) => {
-  const { date, title, news } = req.body;
-
-  const newItem = {
-    id: crypto.randomUUID(),
-    date,
-    title,
-    news,
-  };
-
-  data.push(newItem);
-
-  res.status(201).json({
-    message: "Новость успешно добавлена",
-    data: newItem,
-  });
+app.get("/api/news", async (req, res) => {
+  try {
+    const result = await pool.query("SELECT * FROM news ORDER BY date DESC");
+    res.status(200).json({
+      message: "Список новостей успешно получен",
+      data: result.rows,
+    });
+  } catch (err) {
+    res.status(500).json({ message: "Ошибка при получении новостей", error: err });
+  }
 });
 
-app.delete("/api/news", (req, res) => {
-  const { id } = req.body;
+app.post("/api/news", async (req, res) => {
+  try {
+    const { date, title, news, description } = req.body;
+    const id = crypto.randomUUID();
+    const result = await pool.query(
+      `INSERT INTO news (id, date, title, news, description)
+       VALUES ($1, $2, $3, $4, $5)
+       RETURNING *`,
+      [id, date, title, news, description]
+    );
 
-  const index = data.findIndex(item => item.id === id);
-  const removed = data.splice(index, 1);
-
-  res.status(200).json({
-    message: "Новость удалена",
-    removed: removed[0] ?? null,
-  });
+    res.status(201).json({
+      message: "Новость успешно добавлена",
+      data: result.rows[0],
+    });
+  } catch (err) {
+    res.status(500).json({ message: "Ошибка при добавлении", error: err });
+  }
 });
 
-const PORT = 3000;
+app.delete("/api/news", async (req, res) => {
+  try {
+    const { id } = req.body;
+    const result = await pool.query(
+      `DELETE FROM news WHERE id = $1 RETURNING *`,
+      [id]
+    );
+
+    res.status(200).json({
+      message: "Новость удалена",
+      removed: result.rows[0] ?? null,
+    });
+  } catch (err) {
+    res.status(500).json({ message: "Ошибка при удалении", error: err });
+  }
+});
+
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`server was start: http://localhost:${PORT}`);
+  console.log(`Server is running at http://localhost:${PORT}`);
 });
