@@ -44,6 +44,37 @@ app.post("/api/news", async (req, res) => {
   }
 });
 
+app.put("/api/news/:id", async (req, res) => {
+  const { id } = req.params;
+  const { title, news, description, imageUrl, route, date } = req.body;
+
+  try {
+    const result = await pool.query(
+      `UPDATE news
+       SET title = $1,
+           news = $2,
+           description = $3,
+           imageurl = $4,
+           route = $5,
+           date = $6
+       WHERE id = $7
+       RETURNING *`,
+      [title, news, description, imageUrl, route, date, id]
+    );
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ message: "Новость не найдена" });
+    }
+
+    res.status(200).json({
+      message: "Новость перезаписана",
+      data: result.rows[0],
+    });
+  } catch (err) {
+    res.status(500).json({ message: "Ошибка при перезаписи", error: err });
+  }
+});
+
 app.delete("/api/news", async (req, res) => {
   try {
     const { id } = req.body;
