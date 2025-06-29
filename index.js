@@ -29,10 +29,10 @@ app.post("/api/news", async (req, res) => {
     const { date, title, news, description } = req.body;
     const id = crypto.randomUUID();
     const result = await pool.query(
-      `INSERT INTO news (id, date, title, news, description)
-       VALUES ($1, $2, $3, $4, $5)
+      `INSERT INTO news (id, date, title, news, description, imageUrl, route)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
        RETURNING *`,
-      [id, date, title, news, description]
+      [id, date, title, news, description, route ?? null]
     );
 
     res.status(201).json({
@@ -47,19 +47,29 @@ app.post("/api/news", async (req, res) => {
 app.delete("/api/news", async (req, res) => {
   try {
     const { id } = req.body;
+
+    if (!id) {
+      return res.status(400).json({ message: "Не передан id" });
+    }
+
     const result = await pool.query(
       `DELETE FROM news WHERE id = $1 RETURNING *`,
       [id]
     );
 
+    if (result.rowCount === 0) {
+      return res.status(404).json({ message: "Новость не найдена" });
+    }
+
     res.status(200).json({
       message: "Новость удалена",
-      removed: result.rows[0] ?? null,
+      removed: result.rows[0],
     });
   } catch (err) {
     res.status(500).json({ message: "Ошибка при удалении", error: err });
   }
 });
+
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {

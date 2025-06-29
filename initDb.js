@@ -7,19 +7,29 @@ const createTableQuery = `
     date TIMESTAMP NOT NULL,
     title TEXT NOT NULL,
     news TEXT NOT NULL,
-    description TEXT
+    description TEXT,
+    imageUrl TEXT,
+    route TEXT
   );
 `;
 
+const alterTableQuery = `
+  ALTER TABLE news ADD COLUMN IF NOT EXISTS route TEXT;
+`;
+
 const insertQuery = `
-  INSERT INTO news (id, date, title, news, description)
-  VALUES ($1, $2, $3, $4, $5)
+  INSERT INTO news (id, date, title, news, description, imageUrl, route)
+  VALUES ($1, $2, $3, $4, $5, $6, $7)
 `;
 
 async function initDb() {
   try {
+    await pool.query('DROP TABLE IF EXISTS news');
     await pool.query(createTableQuery);
-
+    await pool.query(alterTableQuery); 
+    await pool.query('SET search_path TO public');
+    await pool.query('DELETE FROM news');
+    
     for (const item of data) {
       await pool.query(insertQuery, [
         item.id,
@@ -27,6 +37,8 @@ async function initDb() {
         item.title,
         item.news,
         item.description,
+        item.imageUrl ?? null,
+        item.route ?? null,
       ]);
     }
 
