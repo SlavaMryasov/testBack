@@ -14,25 +14,58 @@ app.get("/", (req, res) => {
 
 app.get("/api/news", async (req, res) => {
   try {
-    const result = await pool.query("SELECT * FROM news ORDER BY date DESC");
+    const result = await pool.query(`
+      SELECT 
+        id,
+        date,
+        title,
+        news,
+        description,
+        "imageUrl" AS "imageUrl",
+        route
+      FROM news
+      ORDER BY date DESC
+    `);
+
+    const formattedRows = result.rows.map((row) => ({
+      ...row,
+      date: new Intl.DateTimeFormat("ru-RU", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric"
+      }).format(new Date(row.date)), 
+    }));
+
     res.status(200).json({
       message: "Список новостей успешно получен",
-      data: result.rows,
+      data: formattedRows,
     });
   } catch (err) {
     res.status(500).json({ message: "Ошибка при получении новостей", error: err });
   }
 });
 
+
+
+
 app.post("/api/news", async (req, res) => {
   try {
-    const { date, title, news, description } = req.body;
+    const {
+      date,
+      title,
+      news,
+      description,
+      imageUrl = '',
+      route = null
+    } = req.body;
+
     const id = crypto.randomUUID();
+
     const result = await pool.query(
-      `INSERT INTO news (id, date, title, news, description, imageUrl, route)
+      `INSERT INTO news (id, date, title, news, description, "imageUrl", route)
        VALUES ($1, $2, $3, $4, $5, $6, $7)
        RETURNING *`,
-      [id, date, title, news, description, route ?? null]
+      [id, date, title, news, description, imageUrl, route]
     );
 
     res.status(201).json({
@@ -40,13 +73,18 @@ app.post("/api/news", async (req, res) => {
       data: result.rows[0],
     });
   } catch (err) {
+    console.error(err); // добавь лог
     res.status(500).json({ message: "Ошибка при добавлении", error: err });
   }
 });
 
-app.put("/api/news/:id", async (req, res) => {
-  const { id } = req.params;
-  const { title, news, description, imageUrl, route, date } = req.body;
+
+app.put("/api/news", async (req, res) => {
+  const { id, title, news, description, imageUrl, route, date } = req.body;
+
+  if (!id) {
+    return res.status(400).json({ message: "Не передан id новости" });
+  }
 
   try {
     const result = await pool.query(
@@ -54,7 +92,7 @@ app.put("/api/news/:id", async (req, res) => {
        SET title = $1,
            news = $2,
            description = $3,
-           imageurl = $4,
+           "imageUrl" = $4,
            route = $5,
            date = $6
        WHERE id = $7
@@ -67,13 +105,14 @@ app.put("/api/news/:id", async (req, res) => {
     }
 
     res.status(200).json({
-      message: "Новость перезаписана",
+      message: "Новость успешно обновлена",
       data: result.rows[0],
     });
   } catch (err) {
-    res.status(500).json({ message: "Ошибка при перезаписи", error: err });
+    res.status(500).json({ message: "Ошибка при обновлении новости", error: err });
   }
 });
+
 
 app.delete("/api/news", async (req, res) => {
   try {

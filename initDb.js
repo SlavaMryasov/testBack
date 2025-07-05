@@ -8,7 +8,7 @@ const createTableQuery = `
     title TEXT NOT NULL,
     news TEXT NOT NULL,
     description TEXT,
-    imageUrl TEXT,
+    "imageUrl" TEXT,
     route TEXT
   );
 `;
@@ -18,7 +18,7 @@ const alterTableQuery = `
 `;
 
 const insertQuery = `
-  INSERT INTO news (id, date, title, news, description, imageUrl, route)
+  INSERT INTO news (id, date, title, news, description, "imageUrl", route)
   VALUES ($1, $2, $3, $4, $5, $6, $7)
 `;
 
